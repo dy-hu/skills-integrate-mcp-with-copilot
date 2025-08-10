@@ -1,63 +1,67 @@
+document.addEventListener("DOMContentLoaded", () => {
 
   const activitiesList = document.getElementById("activities-list");
   const messageDiv = document.getElementById("message");
+  const searchBar = document.getElementById("search-bar");
+  let allActivities = {};
+
+  // Function to render activities (filtered or all)
+  function renderActivities(activities) {
+    activitiesList.innerHTML = "";
+    Object.entries(activities).forEach(([name, details]) => {
+      const activityCard = document.createElement("div");
+      activityCard.className = "activity-card";
+
+      const spotsLeft = details.max_participants - details.participants.length;
+
+      // Create participants HTML with delete icons instead of bullet points
+      const participantsHTML =
+        details.participants.length > 0
+          ? `<div class="participants-section">
+              <h5>Participants:</h5>
+              <ul class="participants-list">
+                ${details.participants
+                  .map(
+                    (email) =>
+                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                  )
+                  .join("")}
+              </ul>
+            </div>`
+          : `<p><em>No participants yet</em></p>`;
+
+      // Add Register Student button
+      activityCard.innerHTML = `
+        <h4>${name}</h4>
+        <p>${details.description}</p>
+        <p><strong>Schedule:</strong> ${details.schedule}</p>
+        <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+        <div class="participants-container">
+          ${participantsHTML}
+        </div>
+        <button class="register-btn" data-activity="${name}">Register Student</button>
+      `;
+
+      activitiesList.appendChild(activityCard);
+    });
+
+    // Add event listeners to delete buttons
+    document.querySelectorAll(".delete-btn").forEach((button) => {
+      button.addEventListener("click", handleUnregister);
+    });
+
+    // Add event listeners to register buttons
+    document.querySelectorAll(".register-btn").forEach((button) => {
+      button.addEventListener("click", handleRegister);
+    });
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
       const response = await fetch("/activities");
-      const activities = await response.json();
-
-      // Clear loading message
-      activitiesList.innerHTML = "";
-
-      // Populate activities list
-      Object.entries(activities).forEach(([name, details]) => {
-        const activityCard = document.createElement("div");
-        activityCard.className = "activity-card";
-
-        const spotsLeft = details.max_participants - details.participants.length;
-
-        // Create participants HTML with delete icons instead of bullet points
-        const participantsHTML =
-          details.participants.length > 0
-            ? `<div class="participants-section">
-                <h5>Participants:</h5>
-                <ul class="participants-list">
-                  ${details.participants
-                    .map(
-                      (email) =>
-                        `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
-                    )
-                    .join("")}
-                </ul>
-              </div>`
-            : `<p><em>No participants yet</em></p>`;
-
-        // Add Register Student button
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-          <div class="participants-container">
-            ${participantsHTML}
-          </div>
-          <button class="register-btn" data-activity="${name}">Register Student</button>
-        `;
-
-        activitiesList.appendChild(activityCard);
-      });
-
-      // Add event listeners to delete buttons
-      document.querySelectorAll(".delete-btn").forEach((button) => {
-        button.addEventListener("click", handleUnregister);
-      });
-
-      // Add event listeners to register buttons
-      document.querySelectorAll(".register-btn").forEach((button) => {
-        button.addEventListener("click", handleRegister);
-      });
+      allActivities = await response.json();
+      renderActivities(allActivities);
     } catch (error) {
       activitiesList.innerHTML =
         "<p>Failed to load activities. Please try again later.</p>";
@@ -65,6 +69,20 @@
     }
   }
 
+  // Search/filter logic
+  if (searchBar) {
+    searchBar.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase();
+      const filtered = Object.fromEntries(
+        Object.entries(allActivities).filter(
+          ([name, details]) =>
+            name.toLowerCase().includes(query) ||
+            (details.description && details.description.toLowerCase().includes(query))
+        )
+      );
+      renderActivities(filtered);
+    });
+  }
 
   // Handle unregister functionality
   async function handleUnregister(event) {
